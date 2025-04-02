@@ -7,10 +7,6 @@ import cors from "cors";
 import pdfRoutes from './routes/pdfRoutes';
 
 
-export const client = new OpenAI({
-  apiKey: process.env.OPEN_AI_API_KEY,
-});
-
 
 const app = express();
 const port = 8000;

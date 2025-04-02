@@ -24,7 +24,7 @@ const uploadPDF = async (formData: FormData): Promise<TQuizQuestion[]> => {
   // see response
   // processes
 
-  return response?.data.questions as TQuizQuestion[];
+  return response?.data as TQuizQuestion[];
 };
 
 // Services for saving to localStorage
