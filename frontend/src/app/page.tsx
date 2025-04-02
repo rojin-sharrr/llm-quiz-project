@@ -3,14 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
-import { Input } from "../components/ui/input";
-import { Button } from "../components/ui/button";
-
-interface QuizQuestion {
-  question: string;
-  options: string[];
-  answer_index: number;
-}
+import { QuizService } from "./services";
+import { motion } from "framer-motion";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { FileUp } from "lucide-react";
 
 export default function Page() {
   const [file, setFile] = useState<File | null>(null);
@@ -35,32 +33,17 @@ export default function Page() {
     try {
       setIsLoading(true);
 
-      // Create FormData to send the file
-      const formData = new FormData();
-      file && formData.append("uploaded-file", file);
-
+      const formData = QuizService.createFormData(file);
       console.log(
-        "Attempting to upload file to:",
-        "http://localhost:8000/api/uploads"
+        "Attempting to upload the file to localhost:8000/api/uploads"
       );
 
-      // Send the file to your backend using axios
-      const response = await axios.post(
-        "http://localhost:8000/api/uploads",
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-          timeout: 30000, // 30 seconds timeout
-        }
-      );
+      const questions = await QuizService.uploadPDF(formData);
+      console.log(questions);
 
-      const { questions } = response.data;
-      //TODO: Pass the data from the homepage to quiz page using localstorage and not URL
-      // Navigate to quiz page with the quiz data in URL state
-      const encodedData = encodeURIComponent(JSON.stringify(questions));
-      router.push(`/quiz?data=${encodedData}`);
+      QuizService.saveLocalStorage(questions);
+
+      router.push(`/quiz`);
     } catch (error) {
       console.error("Error uploading file:", error);
       if (axios.isAxiosError(error)) {
@@ -86,39 +69,88 @@ export default function Page() {
   };
 
   return (
-    <>
-      <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-b from-blue-50 to-white">
-        <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4 text-center">
-          Welcome: PDF to Quiz generator
-        </h1>
-        <h3 className="text-lg md:text-xl text-gray-600 mb-8 text-center max-w-2xl">
-          Please Upload your pdf in order to get the quiz
-        </h3>
-
-        <div className="w-full max-w-md mx-auto">
-          <Input
-            type="file"
-            name="uploaded-file"
-            placeholder="upload a file"
-            accept=".pdf"
-            onChange={handleFileChange}
-            className="block w-full text-sm text-gray-500
-              file:mr-4 file:py-2 file:px-4
-              file:rounded-md file:border-0
-              file:text-sm file:font-semibold
-              file:bg-blue-50 file:text-blue-700
-              hover:file:bg-blue-100"
-          />
-        </div>
-
-        <Button
-          onClick={handleStartQuiz}
-          disabled={!file || isLoading}
-          className="mt-6 bg-blue-500 hover:bg-blue-600 text-white py-2 px-6 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isLoading ? "Processing..." : "Start Quiz"}
-        </Button>
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white relative overflow-hidden">
+      {/* Background decorative elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-100 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-100 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
+        <div className="absolute top-40 left-40 w-80 h-80 bg-pink-100 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
       </div>
-    </>
+
+      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="text-center mb-12"
+        >
+          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-4 tracking-tight">
+            PDF to Quiz
+          </h1>
+          <h3 className="text-xl md:text-2xl text-gray-600 font-light max-w-2xl mx-auto">
+            Transform your PDF documents into interactive quizzes
+          </h3>
+        </motion.div>
+
+        <Card className="w-full max-w-xl p-8 backdrop-blur-lg bg-white/80 border border-gray-200/50 shadow-xl">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="space-y-6"
+          >
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                Upload PDF
+              </label>
+              <div className="relative">
+                <div className="flex flex-col items-center justify-center">
+                  <Input
+                    type="file"
+                    name="uploaded-file"
+                    accept=".pdf"
+                    onChange={handleFileChange}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  />
+                  <div className="flex flex-col items-center justify-center min-h-[120px] w-full rounded-xl border-2 border-dashed border-gray-200 hover:border-gray-300 transition-colors duration-200 px-4">
+                    <FileUp className="h-8 w-8 mb-2 text-gray-400" />
+                    <p className="text-sm font-medium text-gray-600">
+                      {file ? file.name : "Choose PDF file"}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Click or drag & drop
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <Button
+              onClick={handleStartQuiz}
+              disabled={!file || isLoading}
+              className="w-full bg-gray-900 hover:bg-gray-800 text-white py-3 px-6 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-base font-medium"
+            >
+              {isLoading ? (
+                <div className="flex items-center justify-center space-x-2">
+                  {/* <Icons.spinner className="h-4 w-4 animate-spin" /> */}
+                  <span>Processing...</span>
+                </div>
+              ) : (
+                "Start Quiz"
+              )}
+            </Button>
+          </motion.div>
+        </Card>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+          className="mt-8 text-sm text-gray-500"
+        >
+          <p>Supported format: PDF</p>
+        </motion.div>
+      </div>
+    </div>
   );
 }
