@@ -39,7 +39,6 @@ export default function Page() {
       );
 
       const questions = await QuizService.uploadPDF(formData);
-      console.log(questions);
 
       QuizService.saveLocalStorage(questions);
 
