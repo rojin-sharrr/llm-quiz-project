@@ -98,9 +98,9 @@ app.post("/api/uploads", upload.single("uploaded-file"), async (req, res) => {
   console.log(pdf);
 
   // Creating the response from the LLM'
-  const response = await client.chat.completions.create({
-    model: "gpt-3.5-turbo",
-    messages: [
+  const response = await client.responses.create({
+    model: "gpt-4o",
+    input: [
       {
         role: "system",
         content:
@@ -111,17 +111,53 @@ app.post("/api/uploads", upload.single("uploaded-file"), async (req, res) => {
         content: `Here is the pdf data that was provided ${pdf.text}. Create a quiz with 10 questions from this content.`,
       },
     ],
-    //TODO: Fix the return schema based on NT's last project
-    response_format: { type: "json_object" },
+    text: {
+      "format": {
+        "type": "json_schema",
+        "name": "quiz_questions",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "questions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "question": {
+                    "type": "string"
+                  },
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "answer_index": {
+                    "type": "number",
+                  }
+                },
+                "required": ["question", "options", "answer_index"],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": ["questions"],
+          "additionalProperties": false
+        },
+        "strict": true
+      }
+    }
   });
 
-  const content = response.choices[0].message.content;
+  // Get the data from openai's reposnse
+  const content = response.output_text;
+  
   if (!content) {
     throw new Error("No content received from OpenAI");
   }
 
   const quizData = JSON.parse(content) as QuizData[];
-  console.log(content);
+  console.log(quizData);
   res.json(quizData);
 });
 
