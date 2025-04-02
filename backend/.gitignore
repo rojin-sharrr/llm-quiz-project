@@ -69,4 +69,7 @@ out
 .serverless/
 
 # Local Netlify folder
-.netlify 
+.netlify
+
+# Uploaded files
+file-uploads/ 
